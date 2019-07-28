@@ -13,6 +13,7 @@ import vizdoom as vzd
 from argparse import ArgumentParser
 
 from date_utils import DateUtils
+from constants import *
 import os
 
 # Q-learning settings
@@ -42,7 +43,7 @@ skip_learning = False
 
 # Configuration file path
 DEFAULT_MODEL_SAVEFILE = "savefiles/"
-DEFAULT_CONFIG = "maps/config/rocket_basic.cfg"
+DEFAULT_CONFIG = scenarios_constants['DEADLY_CORRIDOR']
 
 
 # config_file_path = "../../maps/rocket_basic.cfg"

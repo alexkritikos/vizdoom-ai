@@ -2,3 +2,5 @@ venv/
 __pycache__/
 .idea/
 _vizdoom
+savefiles/
+_vizdoom.ini
