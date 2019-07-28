@@ -37,12 +37,12 @@ episodes_to_watch = 10
 
 
 # TODO move to argparser
-save_model = True
-load_model = False
-skip_learning = False
+# save_model = False
+# load_model = True
+# skip_learning = True
 
 # Configuration file path
-DEFAULT_MODEL_SAVEFILE = "savefiles/"
+DEFAULT_MODEL_SAVEFILE = "savefiles/model-28-Jul-2019-205322/"
 DEFAULT_CONFIG = scenarios_constants['DEADLY_CORRIDOR']
 
 
@@ -205,13 +205,27 @@ def initialize_vizdoom(config_file_path):
 
 
 if __name__ == '__main__':
+    # TODO: input validation
+    user_scenario = input("Specify scenario configuration: ")
     parser = ArgumentParser("ViZDoom example showing how to train a simple agent using simplified DQN.")
     parser.add_argument(dest="config",
-                        default=DEFAULT_CONFIG,
+                        default=user_scenario,
                         nargs="?",
                         help="Path to the configuration file of the scenario."
                              " Please see "
                              "../../maps/*cfg for more maps.")
+    parser.add_argument(dest="save",
+                        default=False,
+                        nargs="?",
+                        help="Flag for saving the network weights to a file.")
+    parser.add_argument(dest="load",
+                        default=True,
+                        nargs="?",
+                        help="Flag for loading a pre-trained model.")
+    parser.add_argument(dest="skip_learning",
+                        default=True,
+                        nargs="?",
+                        help="Flag for skip_learning.")
 
     args = parser.parse_args()
 
@@ -228,7 +242,7 @@ if __name__ == '__main__':
     session = tf.compat.v1.Session()
     learn, get_q_values, get_best_action = create_network(session, len(actions))
     saver = tf.train.Saver()
-    if load_model:
+    if args.load:
         print("Loading model from: ", DEFAULT_MODEL_SAVEFILE)
         saver.restore(session, DEFAULT_MODEL_SAVEFILE)
     else:
@@ -237,7 +251,7 @@ if __name__ == '__main__':
     print("Starting the training!")
 
     time_start = time()
-    if not skip_learning:
+    if not args.skip_learning:
         for epoch in range(epochs):
             print("\nEpoch %d\n-------" % (epoch + 1))
             train_episodes_finished = 0
