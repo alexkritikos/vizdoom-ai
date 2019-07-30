@@ -12,7 +12,7 @@ from tqdm import trange
 import vizdoom as vzd
 from argparse import ArgumentParser
 
-from date_utils import DateUtils
+from general_utils import DateUtils, InputValidator
 from constants import *
 import os
 
@@ -206,7 +206,8 @@ def initialize_vizdoom(config_file_path):
 
 if __name__ == '__main__':
     # TODO: input validation
-    user_scenario = input("Specify scenario configuration: ")
+    user_scenario = InputValidator.validate_scenario_input()
+    save_model, load_model, skip_learning = InputValidator.should_save_or_load()
     parser = ArgumentParser("ViZDoom example showing how to train a simple agent using simplified DQN.")
     parser.add_argument(dest="config",
                         default=user_scenario,
@@ -215,15 +216,15 @@ if __name__ == '__main__':
                              " Please see "
                              "../../maps/*cfg for more maps.")
     parser.add_argument(dest="save",
-                        default=False,
+                        default=save_model,
                         nargs="?",
                         help="Flag for saving the network weights to a file.")
     parser.add_argument(dest="load",
-                        default=True,
+                        default=load_model,
                         nargs="?",
                         help="Flag for loading a pre-trained model.")
     parser.add_argument(dest="skip_learning",
-                        default=True,
+                        default=skip_learning,
                         nargs="?",
                         help="Flag for skip_learning.")
 
