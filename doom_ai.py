@@ -6,7 +6,7 @@ import itertools as it
 from random import sample, randint, random
 from time import time, sleep
 import numpy as np
-import skimage.color, skimage.transform
+from skimage import transform
 import tensorflow as tf
 from tqdm import trange
 import vizdoom as vzd
@@ -50,10 +50,17 @@ DEFAULT_CONFIG = scenarios_constants['DEADLY_CORRIDOR']
 # config_file_path = "../../maps/basic.cfg"
 
 # Converts and down-samples the input image
-def preprocess(img):
-    img = skimage.transform.resize(img, resolution)
-    img = img.astype(np.float32)
-    return img
+def preprocess_frame(frame):
+    # Greyscale frame already done in our vizdoom config
+    # x = np.mean(frame,-1)
+    # Crop the screen (remove the roof because it contains no information)
+    cropped_frame = frame[30:-10, 30:-30]
+    # Normalize Pixel Values
+    normalized_frame = cropped_frame / 255.0
+    # Resize
+    preprocessed_frame = transform.resize(normalized_frame, [84, 84])
+
+    return preprocessed_frame
 
 
 class ReplayMemory:
@@ -170,7 +177,7 @@ def perform_learning_step(epoch):
         else:
             return end_eps
 
-    s1 = preprocess(game.get_state().screen_buffer)
+    s1 = preprocess_frame(game.get_state().screen_buffer)
 
     # With probability eps make a random action.
     eps = exploration_rate(epoch)
@@ -182,7 +189,7 @@ def perform_learning_step(epoch):
     reward = game.make_action(actions[a], frame_repeat)
 
     isterminal = game.is_episode_finished()
-    s2 = preprocess(game.get_state().screen_buffer) if not isterminal else None
+    s2 = preprocess_frame(game.get_state().screen_buffer) if not isterminal else None
 
     # Remember the transition that was just experienced.
     memory.add_transition(s1, a, s2, isterminal, reward)
@@ -205,7 +212,6 @@ def initialize_vizdoom(config_file_path):
 
 
 if __name__ == '__main__':
-    # TODO: input validation
     user_scenario = InputValidator.validate_scenario_input()
     save_model, load_model, skip_learning = InputValidator.should_save_or_load()
     parser = ArgumentParser("ViZDoom example showing how to train a simple agent using simplified DQN.")
@@ -281,7 +287,7 @@ if __name__ == '__main__':
             for test_episode in trange(test_episodes_per_epoch, leave=False):
                 game.new_episode()
                 while not game.is_episode_finished():
-                    state = preprocess(game.get_state().screen_buffer)
+                    state = preprocess_frame(game.get_state().screen_buffer)
                     best_action_index = get_best_action(state)
 
                     game.make_action(actions[best_action_index], frame_repeat)
@@ -313,7 +319,7 @@ if __name__ == '__main__':
     for _ in range(episodes_to_watch):
         game.new_episode()
         while not game.is_episode_finished():
-            state = preprocess(game.get_state().screen_buffer)
+            state = preprocess_frame(game.get_state().screen_buffer)
             best_action_index = get_best_action(state)
 
             # Instead of make_action(a, frame_repeat) in order to make the animation smooth
