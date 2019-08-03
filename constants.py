@@ -6,3 +6,7 @@ scenarios_constants = {
     "HEALTH_GATHERING": "maps/config/health_gathering.cfg",
     "ROCKET_BASIC": "maps/config/rocket_basic.cfg"
 }
+
+SAVE_PATH = "savefiles/scenario-"
+DEFAULT_MODEL_SAVEFILE = "savefiles/scenario-basic/"
+DEFAULT_CONFIG = scenarios_constants['BASIC']

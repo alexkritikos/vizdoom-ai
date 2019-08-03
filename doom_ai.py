@@ -125,8 +125,7 @@ if __name__ == '__main__':
     learn, get_q_values, get_best_action = create_network(session, len(actions))
     saver = tf.train.Saver()
     if args.load:
-        print("Loading model from: ", DEFAULT_MODEL_SAVEFILE)
-        saver.restore(session, DEFAULT_MODEL_SAVEFILE)
+        load_by_scenario(get_scenario_name(user_scenario), saver, session)
     else:
         init = tf.global_variables_initializer()
         session.run(init)

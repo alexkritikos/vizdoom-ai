@@ -1,6 +1,7 @@
 from datetime import datetime as dt
 import constants as const
 from skimage import transform
+import os
 
 
 def get_current_timestamp():
@@ -29,6 +30,17 @@ def should_save_or_load():
         return True, False, False
     else:
         return False, True, True
+
+
+def load_by_scenario(scenario, saver, session):
+    load_path = const.SAVE_PATH + scenario + "/"
+    if os.path.exists(load_path):
+        print("Loading model from: ", load_path)
+        saver.restore(session, load_path)
+    else:
+        print("Couldn't restore the model for the "
+              "specified scenario. Exiting...")
+        exit()
 
 
 # Processes Doom screen image to produce cropped and resized image.
