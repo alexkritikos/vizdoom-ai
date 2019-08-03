@@ -6,13 +6,13 @@ import itertools as it
 from random import sample, randint, random
 from time import time, sleep
 import numpy as np
-from skimage import transform
+import skimage
 import tensorflow as tf
 from tqdm import trange
 import vizdoom as vzd
 from argparse import ArgumentParser
 
-from general_utils import DateUtils, InputValidator
+from general_utils import *
 from constants import *
 import os
 
@@ -20,7 +20,7 @@ import os
 learning_rate = 0.00025
 # learning_rate = 0.0001
 discount_factor = 0.99
-epochs = 1
+epochs = 20
 learning_steps_per_epoch = 2000
 replay_memory_size = 10000
 
@@ -32,35 +32,17 @@ test_episodes_per_epoch = 100
 
 # Other parameters
 frame_repeat = 12
+# resolution = (100, 160)
 resolution = (30, 45)
 episodes_to_watch = 10
 
-
-# TODO move to argparser
-# save_model = False
-# load_model = True
-# skip_learning = True
-
 # Configuration file path
-DEFAULT_MODEL_SAVEFILE = "savefiles/model-28-Jul-2019-205322/"
-DEFAULT_CONFIG = scenarios_constants['DEADLY_CORRIDOR']
+DEFAULT_MODEL_SAVEFILE = "savefiles/scenario-BASIC/"
+DEFAULT_CONFIG = scenarios_constants['BASIC']
 
 
 # config_file_path = "../../maps/rocket_basic.cfg"
 # config_file_path = "../../maps/basic.cfg"
-
-# Converts and down-samples the input image
-def preprocess_frame(frame):
-    # Greyscale frame already done in our vizdoom config
-    # x = np.mean(frame,-1)
-    # Crop the screen (remove the roof because it contains no information)
-    cropped_frame = frame[30:-10, 30:-30]
-    # Normalize Pixel Values
-    normalized_frame = cropped_frame / 255.0
-    # Resize
-    preprocessed_frame = transform.resize(normalized_frame, [84, 84])
-
-    return preprocessed_frame
 
 
 class ReplayMemory:
@@ -212,8 +194,8 @@ def initialize_vizdoom(config_file_path):
 
 
 if __name__ == '__main__':
-    user_scenario = InputValidator.validate_scenario_input()
-    save_model, load_model, skip_learning = InputValidator.should_save_or_load()
+    user_scenario = validate_scenario_input()
+    save_model, load_model, skip_learning = should_save_or_load()
     parser = ArgumentParser("ViZDoom example showing how to train a simple agent using simplified DQN.")
     parser.add_argument(dest="config",
                         default=user_scenario,
@@ -238,6 +220,7 @@ if __name__ == '__main__':
 
     # Create Doom instance
     game = initialize_vizdoom(args.config)
+    get_scenario_name(user_scenario)
 
     # Action = which buttons are pressed
     n = game.get_available_buttons_size()
@@ -299,7 +282,7 @@ if __name__ == '__main__':
                 test_scores.mean(), test_scores.std()), "min: %.1f" % test_scores.min(),
                   "max: %.1f" % test_scores.max())
 
-            save_dir = "savefiles/model-" + DateUtils.get_current_timestamp() + "/"
+            save_dir = "savefiles/scenario-" + get_scenario_name(user_scenario) + "/"
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             print("Saving the network weigths to:", save_dir)
