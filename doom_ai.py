@@ -3,124 +3,17 @@
 from __future__ import division
 from __future__ import print_function
 import itertools as it
-from random import sample, randint, random
+from random import randint, random
 from time import time, sleep
 import numpy as np
-import skimage
-import tensorflow as tf
 from tqdm import trange
 import vizdoom as vzd
 from argparse import ArgumentParser
 
 from general_utils import *
-from constants import *
 import os
-
-# Q-learning settings
-learning_rate = 0.00025
-# learning_rate = 0.0001
-discount_factor = 0.99
-epochs = 20
-learning_steps_per_epoch = 2000
-replay_memory_size = 10000
-
-# NN learning settings
-batch_size = 64
-
-# Training regime
-test_episodes_per_epoch = 100
-
-# Other parameters
-frame_repeat = 12
-# resolution = (100, 160)
-resolution = (30, 45)
-episodes_to_watch = 10
-
-# Configuration file path
-DEFAULT_MODEL_SAVEFILE = "savefiles/scenario-BASIC/"
-DEFAULT_CONFIG = scenarios_constants['BASIC']
-
-
-# config_file_path = "../../maps/rocket_basic.cfg"
-# config_file_path = "../../maps/basic.cfg"
-
-
-class ReplayMemory:
-    def __init__(self, capacity):
-        channels = 1
-        state_shape = (capacity, resolution[0], resolution[1], channels)
-        self.s1 = np.zeros(state_shape, dtype=np.float32)
-        self.s2 = np.zeros(state_shape, dtype=np.float32)
-        self.a = np.zeros(capacity, dtype=np.int32)
-        self.r = np.zeros(capacity, dtype=np.float32)
-        self.isterminal = np.zeros(capacity, dtype=np.float32)
-
-        self.capacity = capacity
-        self.size = 0
-        self.pos = 0
-
-    def add_transition(self, s1, action, s2, isterminal, reward):
-        self.s1[self.pos, :, :, 0] = s1
-        self.a[self.pos] = action
-        if not isterminal:
-            self.s2[self.pos, :, :, 0] = s2
-        self.isterminal[self.pos] = isterminal
-        self.r[self.pos] = reward
-
-        self.pos = (self.pos + 1) % self.capacity
-        self.size = min(self.size + 1, self.capacity)
-
-    def get_sample(self, sample_size):
-        i = sample(range(0, self.size), sample_size)
-        return self.s1[i], self.a[i], self.s2[i], self.isterminal[i], self.r[i]
-
-
-def create_network(session, available_actions_count):
-    # Create the input variables
-    s1_ = tf.placeholder(tf.float32, [None] + list(resolution) + [1], name="State")
-    a_ = tf.placeholder(tf.int32, [None], name="Action")
-    target_q_ = tf.placeholder(tf.float32, [None, available_actions_count], name="TargetQ")
-
-    # Add 2 convolutional layers with ReLu activation
-    conv1 = tf.contrib.layers.convolution2d(s1_, num_outputs=8, kernel_size=[6, 6], stride=[3, 3],
-                                            activation_fn=tf.nn.relu,
-                                            weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
-                                            biases_initializer=tf.constant_initializer(0.1))
-    conv2 = tf.contrib.layers.convolution2d(conv1, num_outputs=8, kernel_size=[3, 3], stride=[2, 2],
-                                            activation_fn=tf.nn.relu,
-                                            weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
-                                            biases_initializer=tf.constant_initializer(0.1))
-    conv2_flat = tf.contrib.layers.flatten(conv2)
-    fc1 = tf.contrib.layers.fully_connected(conv2_flat, num_outputs=128, activation_fn=tf.nn.relu,
-                                            weights_initializer=tf.contrib.layers.xavier_initializer(),
-                                            biases_initializer=tf.constant_initializer(0.1))
-
-    q = tf.contrib.layers.fully_connected(fc1, num_outputs=available_actions_count, activation_fn=None,
-                                          weights_initializer=tf.contrib.layers.xavier_initializer(),
-                                          biases_initializer=tf.constant_initializer(0.1))
-    best_a = tf.argmax(q, 1)
-
-    loss = tf.losses.mean_squared_error(q, target_q_)
-
-    optimizer = tf.train.RMSPropOptimizer(learning_rate)
-    # Update the parameters according to the computed gradient using RMSProp.
-    train_step = optimizer.minimize(loss)
-
-    def function_learn(s1, target_q):
-        feed_dict = {s1_: s1, target_q_: target_q}
-        l, _ = session.run([loss, train_step], feed_dict=feed_dict)
-        return l
-
-    def function_get_q_values(state):
-        return session.run(q, feed_dict={s1_: state})
-
-    def function_get_best_action(state):
-        return session.run(best_a, feed_dict={s1_: state})
-
-    def function_simple_get_best_action(state):
-        return function_get_best_action(state.reshape([1, resolution[0], resolution[1], 1]))[0]
-
-    return function_learn, function_get_q_values, function_simple_get_best_action
+from network import *
+from memory import ReplayMemory
 
 
 def learn_from_memory():
@@ -220,7 +113,6 @@ if __name__ == '__main__':
 
     # Create Doom instance
     game = initialize_vizdoom(args.config)
-    get_scenario_name(user_scenario)
 
     # Action = which buttons are pressed
     n = game.get_available_buttons_size()

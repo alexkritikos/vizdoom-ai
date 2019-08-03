@@ -17,7 +17,6 @@ def validate_scenario_input():
 def get_scenario_name(config):
     for conf in const.scenarios_constants:
         if config == const.scenarios_constants[conf]:
-            print(conf.lower())
             return conf.lower()
 
 
