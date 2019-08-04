@@ -32,15 +32,20 @@ def should_save_or_load():
         return False, True, True
 
 
-def load_by_scenario(scenario, saver, session):
-    load_path = const.SAVE_PATH + scenario + "/"
-    if os.path.exists(load_path):
-        print("Loading model from: ", load_path)
-        saver.restore(session, load_path)
+def load_by_scenario(is_load, scenario, saver, session):
+    if is_load:
+        load_path = const.SAVE_PATH + scenario + "/"
+        if os.path.exists(load_path):
+            print("Loading model from: ", load_path)
+            saver.restore(session, load_path)
+            return True
+        else:
+            print("Couldn't restore a model for the "
+                  "specified scenario. A new model "
+                  "will be saved after training.")
+            return False
     else:
-        print("Couldn't restore the model for the "
-              "specified scenario. Exiting...")
-        exit()
+        return False
 
 
 # Processes Doom screen image to produce cropped and resized image.

@@ -14,6 +14,7 @@ from general_utils import *
 import os
 from network import *
 from memory import ReplayMemory
+from environment import *
 
 
 def learn_from_memory():
@@ -72,20 +73,6 @@ def perform_learning_step(epoch):
     learn_from_memory()
 
 
-# Creates and initializes ViZDoom environment.
-def initialize_vizdoom(config_file_path):
-    print("Initializing doom...")
-    game = vzd.DoomGame()
-    game.load_config(config_file_path)
-    game.set_window_visible(False)  # Only for training purposes
-    game.set_mode(vzd.Mode.PLAYER)
-    game.set_screen_format(vzd.ScreenFormat.GRAY8)
-    game.set_screen_resolution(vzd.ScreenResolution.RES_640X480)
-    game.init()
-    print("Doom initialized.")
-    return game
-
-
 if __name__ == '__main__':
     user_scenario = validate_scenario_input()
     save_model, load_model, skip_learning = should_save_or_load()
@@ -124,9 +111,8 @@ if __name__ == '__main__':
     session = tf.compat.v1.Session()
     learn, get_q_values, get_best_action = create_network(session, len(actions))
     saver = tf.train.Saver()
-    if args.load:
-        load_by_scenario(get_scenario_name(user_scenario), saver, session)
-    else:
+    if not load_by_scenario(args.load, get_scenario_name(user_scenario), saver, session):
+        args.skip_learning = False
         init = tf.global_variables_initializer()
         session.run(init)
     print("Starting the training!")
