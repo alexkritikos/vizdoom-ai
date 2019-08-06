@@ -110,10 +110,10 @@ if __name__ == '__main__':
 
     session = tf.compat.v1.Session()
     learn, get_q_values, get_best_action = create_network(session, len(actions))
-    saver = tf.train.Saver()
+    saver = tf.compat.v1.train.Saver()
     if not load_by_scenario(args.load, get_scenario_name(user_scenario), saver, session):
         args.skip_learning = False
-        init = tf.global_variables_initializer()
+        init = tf.compat.v1.global_variables_initializer()
         session.run(init)
     print("Starting the training!")
 

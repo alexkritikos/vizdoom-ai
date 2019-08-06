@@ -4,9 +4,9 @@ import tensorflow as tf
 
 def create_network(session, available_actions_count):
     # Create the input variables
-    s1_ = tf.placeholder(tf.float32, [None] + list(resolution) + [1], name="State")
-    a_ = tf.placeholder(tf.int32, [None], name="Action")
-    target_q_ = tf.placeholder(tf.float32, [None, available_actions_count], name="TargetQ")
+    s1_ = tf.compat.v1.placeholder(tf.float32, [None] + list(resolution) + [1], name="State")
+    a_ = tf.compat.v1.placeholder(tf.int32, [None], name="Action")
+    target_q_ = tf.compat.v1.placeholder(tf.float32, [None, available_actions_count], name="TargetQ")
 
     # Add 2 convolutional layers with ReLu activation
     conv1 = tf.contrib.layers.convolution2d(s1_, num_outputs=8, kernel_size=[6, 6], stride=[3, 3],
@@ -27,9 +27,9 @@ def create_network(session, available_actions_count):
                                           biases_initializer=tf.constant_initializer(0.1))
     best_a = tf.argmax(q, 1)
 
-    loss = tf.losses.mean_squared_error(q, target_q_)
+    loss = tf.compat.v1.losses.mean_squared_error(q, target_q_)
 
-    optimizer = tf.train.RMSPropOptimizer(learning_rate)
+    optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate)
     # Update the parameters according to the computed gradient using RMSProp.
     train_step = optimizer.minimize(loss)
 
