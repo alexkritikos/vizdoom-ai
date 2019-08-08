@@ -29,7 +29,7 @@ def learn_from_memory():
         target_q = get_q_values(s1)
         # target differs from q only for the selected action. The following means:
         # target_Q(s,a) = r + gamma * max Q(s2,_) if not isterminal else r
-        target_q[np.arange(target_q.shape[0]), a] = r + discount_factor * (1 - isterminal) * q2
+        target_q[np.arange(target_q.shape[0]), a] = r + gamma * (1 - isterminal) * q2
         learn(s1, target_q)
 
 
@@ -98,6 +98,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    # Initialize stacked frames
+    stacked_frames = deque([np.zeros((30, 45), dtype=np.int) for i in range(stack_size)], maxlen=4)
+
     # Create Doom instance
     game = initialize_vizdoom(args.config)
 
@@ -152,6 +155,7 @@ if __name__ == '__main__':
 
                     game.make_action(actions[best_action_index], frame_repeat)
                 r = game.get_total_reward()
+                print("\nKill Count: %.1f" % game.get_game_variable(vzd.GameVariable.KILLCOUNT))
                 test_scores.append(r)
 
             test_scores = np.array(test_scores)

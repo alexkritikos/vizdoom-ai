@@ -2,6 +2,9 @@ from datetime import datetime as dt
 import constants as const
 from skimage import transform
 import os
+from parameters import *
+import numpy as np
+from collections import deque
 
 
 def get_current_timestamp():
@@ -63,3 +66,28 @@ def preprocess_frame(frame):
     preprocessed_frame = transform.resize(normalized_frame, [30, 45])
 
     return preprocessed_frame
+
+
+def stack_frames(stacked_frames, state, is_new_episode):
+    # Preprocess frame
+    frame = preprocess_frame(state)
+
+    if is_new_episode:
+        # Clear our stacked_frames
+        stacked_frames = deque([np.zeros((30, 45), dtype=np.int) for i in range(stack_size)], maxlen=4)
+
+        # Because we're in a new episode, copy the same frame 4x
+        for i in range(3):
+            stacked_frames.append(frame)
+
+        # Stack the frames
+        stacked_state = np.stack(stacked_frames, axis=2)
+
+    else:
+        # Append frame to deque, automatically removes the oldest frame
+        stacked_frames.append(frame)
+
+        # Build the stacked state (first dimension specifies different frames)
+        stacked_state = np.stack(stacked_frames, axis=2)
+
+    return stacked_state, stacked_frames
