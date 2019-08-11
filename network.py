@@ -2,6 +2,69 @@ from parameters import *
 import tensorflow as tf
 
 
+# Initial implementation without stacked input functionality
+class DuelingDoubleDQN:
+    def __init__(self, session, available_actions_count, name):
+        self.session = session
+        self.available_actions_count = available_actions_count
+        self.name = name
+
+        with tf.variable_scope(self.name):
+            self.states_ = tf.compat.v1.placeholder(tf.float32, [None] + list(resolution) + [1], name="InputStates")
+            self.w_ = tf.compat.v1.placeholder(tf.float32, [None, 1], name="Weights")
+            self.a_ = tf.compat.v1.placeholder(tf.int32, [None], name="Action")
+            self.target_q_ = tf.compat.v1.placeholder(tf.float32, [None, self.available_actions_count], name="TargetQ")
+
+            self.conv1 = tf.layers.conv2d(inputs=self.states_, filters=32, kernel_size=[8, 8],
+                                          strides=[4, 4], padding="VALID",
+                                          kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
+                                          name="convnet1")
+            self.conv1_out = tf.nn.elu(self.conv1, name="convnet1_output")
+            self.conv2 = tf.layers.conv2d(inputs=self.conv1_out, filters=64, kernel_size=[4, 4],
+                                          strides=[2, 2], padding="VALID",
+                                          kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
+                                          name="convnet2")
+            self.conv2_out = tf.nn.elu(self.conv2, name="convnet2_output")
+            self.conv3 = tf.layers.conv2d(inputs=self.conv2_out, filters=128, kernel_size=[4, 4],
+                                          strides=[2, 2], padding="VALID",
+                                          kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
+                                          name="convnet3")
+            self.conv3_out = tf.nn.elu(self.conv3, name="convnet3_output")
+
+            self.flatten = tf.layers.flatten(self.conv3_out)
+
+            # Calculates V(s)
+            self.value_fully_connected = tf.layers.dense(inputs=self.flatten, units=512, activation=tf.nn.elu,
+                                                         kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                                         name="value_fully_connected")
+            self.value = tf.layers.dense(inputs=self.value_fully_connected, units=1, activation=None,
+                                         kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                         name="value_output")
+
+            # Calculates A(s, a)
+            self.advantage_fully_connected = tf.layers.dense(inputs=self.flatten, units=512, activation=tf.nn.elu,
+                                                             kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                                             name="advantage_fully_connected")
+            self.advantage = tf.layers.dense(inputs=self.advantage_fully_connected, units=self.available_actions_count,
+                                             activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                             name="advantage_output")
+
+            # Q(s,a) = V(s) + (A(s,a) - 1/|A| * sum A(s,a'))
+            self.output_layer = self.value + tf.subtract(self.advantage, tf.reduce_mean(self.advantage, axis=1,
+                                                                                        keepdims=True))
+            self.predictedQ = tf.reduce_sum(tf.multiply(self.output_layer, self.a_), axis=1)
+
+            self.absolute_errors = tf.abs(self.target_q_ - self.predictedQ)
+            self.loss = tf.reduce_mean(self.w_ * tf.squared_difference(self.target_q_ - self.predictedQ))
+            self.optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate)
+            self.train_step = self.optimizer.minimize(self.loss)
+
+
+
+
+
+
+
 def create_network(session, available_actions_count):
     # Create the input variables
     s1_ = tf.compat.v1.placeholder(tf.float32, [None] + list(resolution) + [1], name="State")

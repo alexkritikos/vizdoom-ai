@@ -112,6 +112,7 @@ if __name__ == '__main__':
     memory = ReplayMemory(capacity=replay_memory_size)
 
     session = tf.compat.v1.Session()
+    network = DuelingDoubleDQN(session, len(actions), name="DuelingDoubleDQN")
     learn, get_q_values, get_best_action = create_network(session, len(actions))
     saver = tf.compat.v1.train.Saver()
     if not load_by_scenario(args.load, get_scenario_name(user_scenario), saver, session):
@@ -132,6 +133,7 @@ if __name__ == '__main__':
             for learning_step in trange(learning_steps_per_epoch, leave=False):
                 perform_learning_step(epoch)
                 if game.is_episode_finished():
+                    # Monte Carlo Approach: rewards are only received at the end of the game.
                     score = game.get_total_reward()
                     train_scores.append(score)
                     game.new_episode()
@@ -140,6 +142,7 @@ if __name__ == '__main__':
             print("%d training episodes played." % train_episodes_finished)
 
             train_scores = np.array(train_scores)
+            print(train_scores)
 
             print("Results: mean: %.1f±%.1f," % (train_scores.mean(), train_scores.std()), \
                   "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max())
@@ -155,10 +158,11 @@ if __name__ == '__main__':
 
                     game.make_action(actions[best_action_index], frame_repeat)
                 r = game.get_total_reward()
-                print("\nKill Count: %.1f" % game.get_game_variable(vzd.GameVariable.KILLCOUNT))
                 test_scores.append(r)
 
             test_scores = np.array(test_scores)
+            print(train_scores)
+
             print("Results: mean: %.1f±%.1f," % (
                 test_scores.mean(), test_scores.std()), "min: %.1f" % test_scores.min(),
                   "max: %.1f" % test_scores.max())
