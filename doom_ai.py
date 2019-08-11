@@ -112,7 +112,7 @@ if __name__ == '__main__':
     memory = ReplayMemory(capacity=replay_memory_size)
 
     session = tf.compat.v1.Session()
-    network = DuelingDoubleDQN(session, len(actions), name="DuelingDoubleDQN")
+    # network = DuelingDoubleDQN(session, len(actions), name="DuelingDoubleDQN")
     learn, get_q_values, get_best_action = create_network(session, len(actions))
     saver = tf.compat.v1.train.Saver()
     if not load_by_scenario(args.load, get_scenario_name(user_scenario), saver, session):

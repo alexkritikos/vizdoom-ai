@@ -64,7 +64,6 @@ def preprocess_frame(frame):
     # Resize
     # preprocessed_frame = transform.resize(normalized_frame, [100, 160])
     preprocessed_frame = transform.resize(normalized_frame, [30, 45])
-
     return preprocessed_frame
 
 
