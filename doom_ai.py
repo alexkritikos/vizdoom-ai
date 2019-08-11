@@ -5,7 +5,6 @@ from __future__ import print_function
 import itertools as it
 from random import randint, random
 from time import time, sleep
-import numpy as np
 from tqdm import trange
 import vizdoom as vzd
 from argparse import ArgumentParser
@@ -99,7 +98,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Initialize stacked frames
-    stacked_frames = deque([np.zeros((30, 45), dtype=np.int) for i in range(stack_size)], maxlen=4)
+    stacked_frames = deque([np.zeros((100, 120), dtype=np.int) for i in range(stack_size)], maxlen=4)
 
     # Create Doom instance
     game = initialize_vizdoom(args.config)

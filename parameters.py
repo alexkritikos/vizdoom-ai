@@ -1,5 +1,5 @@
 # input hyperparameters
-state_size = [30, 45, 4]  # Our input is a stack of 4 frames hence 30x45x4 (Width, height, channels)
+state_size = [100, 120, 4]  # Our input is a stack of 4 frames hence 100x120x4 (Width, height, channels)
 stack_size = 4
 
 # training hyperparameters
@@ -23,6 +23,12 @@ pretrain_length = batch_size  # Number of experiences stored in the Memory when 
 # replay_memory_size = 1000000  # PRODUCES VM CRASH. REQUIRES GPU USAGE
 replay_memory_size = 100000  # Number of experiences the Memory can keep
 # replay_memory_size = 10000
+PER_e = 0.01  # Parameter that we use to avoid some experiences to have 0 probability of being taken
+PER_a = 0.6  # Parameter that we use to make a tradeoff between taking only exp with high priority and sampling randomly
+# PER_a = 0.7
+PER_b = 0.4  # Importance-sampling, from initial value increasing to 1
+PER_b_increment_per_sampling = 0.001
+absolute_error_upper = 1.  # clipped abs error
 
 
 
@@ -30,7 +36,7 @@ replay_memory_size = 100000  # Number of experiences the Memory can keep
 test_episodes_per_epoch = 100
 frame_repeat = 12
 # resolution = (100, 160)
-resolution = (30, 45)
+resolution = (100, 120)
 
 # post-training parameters
 episodes_to_watch = 10
