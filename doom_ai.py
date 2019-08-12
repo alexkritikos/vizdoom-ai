@@ -12,7 +12,7 @@ from argparse import ArgumentParser
 from general_utils import *
 import os
 from network import *
-from memory import ReplayMemory
+from memory import ReplayMemory, PERMemory
 from environment import *
 
 
@@ -32,7 +32,7 @@ def learn_from_memory():
         learn(s1, target_q)
 
 
-def perform_learning_step(epoch):
+def perform_learning_step(epoch, stacked_frames):
     """ Makes an action according to eps-greedy policy, observes the result
     (next state, reward) and learns from the transition"""
 
@@ -52,7 +52,9 @@ def perform_learning_step(epoch):
         else:
             return end_eps
 
-    s1 = preprocess_frame(game.get_state().screen_buffer)
+    # s1 = preprocess_frame(game.get_state().screen_buffer)
+    s1 = game.get_state().screen_buffer
+    s1, stacked_frames = stack_frames(stacked_frames, s1, True)
 
     # With probability eps make a random action.
     eps = exploration_rate(epoch)
@@ -64,8 +66,13 @@ def perform_learning_step(epoch):
     reward = game.make_action(actions[a], frame_repeat)
 
     isterminal = game.is_episode_finished()
-    s2 = preprocess_frame(game.get_state().screen_buffer) if not isterminal else None
 
+    # s2 = preprocess_frame(game.get_state().screen_buffer) if not isterminal else None
+    if not isterminal:
+        s2 = game.get_state().screen_buffer
+        s2, stacked_frames = stack_frames(stacked_frames, s2, True)
+    else:
+        s2 = None
     # Remember the transition that was just experienced.
     memory.add_transition(s1, a, s2, isterminal, reward)
 
@@ -97,21 +104,23 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # Initialize stacked frames
-    stacked_frames = deque([np.zeros((100, 120), dtype=np.int) for i in range(stack_size)], maxlen=4)
-
     # Create Doom instance
     game = initialize_vizdoom(args.config)
 
+    # Initialize stacked frames
+    stacked_frames = deque([np.zeros((state_size[0], state_size[1]), dtype=np.int) for i in range(stack_size)],
+                           maxlen=4)
     # Action = which buttons are pressed
     n = game.get_available_buttons_size()
     actions = [list(a) for a in it.product([0, 1], repeat=n)]
 
     # Create replay memory which will store the transitions
     memory = ReplayMemory(capacity=replay_memory_size)
+    # memory = PERMemory(capacity=replay_memory_size)
 
     session = tf.compat.v1.Session()
     # network = DuelingDoubleDQN(session, len(actions), name="DuelingDoubleDQN")
+    # targetNetwork = DuelingDoubleDQN(session, len(actions), name="TargetDuelingDoubleDQN")
     learn, get_q_values, get_best_action = create_network(session, len(actions))
     saver = tf.compat.v1.train.Saver()
     if not load_by_scenario(args.load, get_scenario_name(user_scenario), saver, session):
@@ -130,7 +139,7 @@ if __name__ == '__main__':
             print("Training...")
             game.new_episode()
             for learning_step in trange(learning_steps_per_epoch, leave=False):
-                perform_learning_step(epoch)
+                perform_learning_step(epoch, stacked_frames)
                 if game.is_episode_finished():
                     # Monte Carlo Approach: rewards are only received at the end of the game.
                     score = game.get_total_reward()
@@ -147,20 +156,22 @@ if __name__ == '__main__':
                   "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max())
 
             print("\nTesting...")
+            stacked_frames = deque([np.zeros((state_size[0], state_size[1]), dtype=np.int) for i in range(stack_size)],
+                                   maxlen=4)
             test_episode = []
             test_scores = []
             for test_episode in trange(test_episodes_per_epoch, leave=False):
                 game.new_episode()
                 while not game.is_episode_finished():
-                    state = preprocess_frame(game.get_state().screen_buffer)
+                    state = game.get_state().screen_buffer
+                    state, stacked_frames = stack_frames(stacked_frames, state, True)
                     best_action_index = get_best_action(state)
-
                     game.make_action(actions[best_action_index], frame_repeat)
                 r = game.get_total_reward()
                 test_scores.append(r)
 
             test_scores = np.array(test_scores)
-            print(train_scores)
+            print(test_scores)
 
             print("Results: mean: %.1f±%.1f," % (
                 test_scores.mean(), test_scores.std()), "min: %.1f" % test_scores.min(),
@@ -182,11 +193,13 @@ if __name__ == '__main__':
     game.set_window_visible(True)
     game.set_mode(vzd.Mode.ASYNC_PLAYER)
     game.init()
-
+    stacked_frames = deque([np.zeros((state_size[0], state_size[1]), dtype=np.int) for i in range(stack_size)],
+                           maxlen=4)
     for _ in range(episodes_to_watch):
         game.new_episode()
         while not game.is_episode_finished():
-            state = preprocess_frame(game.get_state().screen_buffer)
+            state = game.get_state().screen_buffer
+            state, stacked_frames = stack_frames(stacked_frames, state, True)
             best_action_index = get_best_action(state)
 
             # Instead of make_action(a, frame_repeat) in order to make the animation smooth

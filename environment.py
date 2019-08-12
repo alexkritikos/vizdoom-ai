@@ -1,5 +1,5 @@
 import vizdoom as vzd
-from parameters import *
+from parameters import state_size, stack_size
 import numpy as np
 from skimage import transform
 from collections import deque
@@ -22,25 +22,24 @@ def initialize_vizdoom(config_file_path):
 # Processes Doom screen image to produce cropped and resized image.
 def preprocess_frame(frame):
     # The frame is already grayscaled in vizdoom config
-    # x = np.mean(frame,-1)
-
-    # Crop the screen (remove the roof because it contains no information)
     # [Up: Down, Left: right]
     cropped_frame = frame[15:-5, 20:-20]   # DEADLY CORRIDOR TUNING
     # Normalize Pixel Values
     normalized_frame = cropped_frame / 255.0
     # Resize
     # preprocessed_frame = transform.resize(normalized_frame, [100, 160])
-    preprocessed_frame = transform.resize(normalized_frame, [100, 120])
+    preprocessed_frame = transform.resize(normalized_frame, [state_size[0], state_size[1]])
     return preprocessed_frame
 
 
 def stack_frames(stacked_frames, state, is_new_episode):
     # Preprocess frame
     frame = preprocess_frame(state)
+    # frame = transform.resize(state, [state_size[0], state_size[1]])
     if is_new_episode:
         # Clear our stacked_frames
-        stacked_frames = deque([np.zeros((100, 120), dtype=np.int) for i in range(stack_size)], maxlen=4)
+        stacked_frames = deque([np.zeros((state_size[0], state_size[1]), dtype=np.int) for i in range(stack_size)],
+                               maxlen=4)
         for i in range(3):
             stacked_frames.append(frame)
         # Stack the frames

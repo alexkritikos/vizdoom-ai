@@ -96,8 +96,8 @@ class PERMemory(object):  # stored as ( s, a, r, s_ ) in SumTree
 
 class ReplayMemory:
     def __init__(self, capacity):
-        channels = 1
-        state_shape = (capacity, resolution[0], resolution[1], channels)
+        channels = state_size[2]
+        state_shape = (capacity, state_size[0], state_size[1], channels)
         self.s1 = np.zeros(state_shape, dtype=np.float32)
         self.s2 = np.zeros(state_shape, dtype=np.float32)
         self.a = np.zeros(capacity, dtype=np.int32)
@@ -109,10 +109,10 @@ class ReplayMemory:
         self.pos = 0
 
     def add_transition(self, s1, action, s2, isterminal, reward):
-        self.s1[self.pos, :, :, 0] = s1
+        self.s1[self.pos, :, :, :] = s1
         self.a[self.pos] = action
         if not isterminal:
-            self.s2[self.pos, :, :, 0] = s2
+            self.s2[self.pos, :, :, :] = s2
         self.isterminal[self.pos] = isterminal
         self.r[self.pos] = reward
 

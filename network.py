@@ -10,7 +10,7 @@ class DuelingDoubleDQN:
         self.name = name
 
         with tf.variable_scope(self.name):
-            self.states_ = tf.compat.v1.placeholder(tf.float32, [None] + list(resolution) + [1], name="InputStates")
+            self.states_ = tf.compat.v1.placeholder(tf.float32, [None, *state_size], name="InputStates")
             self.w_ = tf.compat.v1.placeholder(tf.float32, [None, 1], name="Weights")
             self.a_ = tf.compat.v1.placeholder(tf.int32, [None], name="Action")
             self.target_q_ = tf.compat.v1.placeholder(tf.float32, [None, self.available_actions_count], name="TargetQ")
@@ -64,10 +64,9 @@ class DuelingDoubleDQN:
 
 
 
-
 def create_network(session, available_actions_count):
     # Create the input variables
-    s1_ = tf.compat.v1.placeholder(tf.float32, [None] + list(resolution) + [1], name="State")
+    s1_ = tf.compat.v1.placeholder(tf.float32, [None] + list(state_size), name="State")
     a_ = tf.compat.v1.placeholder(tf.int32, [None], name="Action")
     target_q_ = tf.compat.v1.placeholder(tf.float32, [None, available_actions_count], name="TargetQ")
 
@@ -108,6 +107,6 @@ def create_network(session, available_actions_count):
         return session.run(best_a, feed_dict={s1_: state})
 
     def function_simple_get_best_action(state):
-        return function_get_best_action(state.reshape([1, resolution[0], resolution[1], 1]))[0]
+        return function_get_best_action(state.reshape([1, state_size[0], state_size[1], state_size[2]]))[0]
 
     return function_learn, function_get_q_values, function_simple_get_best_action

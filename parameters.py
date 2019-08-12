@@ -19,10 +19,11 @@ gamma = 0.99  # Initial Discounting rate
 
 
 # Memory hyperparameters
-pretrain_length = batch_size  # Number of experiences stored in the Memory when initialized for the first time
+pretrain_memory_size = 100000  # Number of experiences stored in the Memory when initialized for the first time
+# Number of experiences the Memory can keep
 # replay_memory_size = 1000000  # PRODUCES VM CRASH. REQUIRES GPU USAGE
-replay_memory_size = 100000  # Number of experiences the Memory can keep
-# replay_memory_size = 10000
+# replay_memory_size = 100000
+replay_memory_size = 40000  # Used for deadly corridor where the state array will be huge
 PER_e = 0.01  # Parameter that we use to avoid some experiences to have 0 probability of being taken
 PER_a = 0.6  # Parameter that we use to make a tradeoff between taking only exp with high priority and sampling randomly
 # PER_a = 0.7
