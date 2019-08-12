@@ -46,3 +46,6 @@ def load_by_scenario(is_load, scenario, saver, session):
     else:
         return False
 
+
+def load_file_simple(config):
+    return const.SAVE_PATH + get_scenario_name(config) + "/"

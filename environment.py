@@ -3,6 +3,7 @@ from parameters import state_size, stack_size
 import numpy as np
 from skimage import transform
 from collections import deque
+import itertools as it
 
 
 # Creates and initializes ViZDoom environment.
@@ -17,6 +18,21 @@ def initialize_vizdoom(config_file_path):
     game.init()
     print("Doom initialized.")
     return game
+
+
+def init_watching_environment(configuration):
+    print("Initializing doom...")
+    game = vzd.DoomGame()
+    game.load_config(configuration)
+    game.set_window_visible(True)  # Only for training purposes
+    game.set_mode(vzd.Mode.ASYNC_PLAYER)
+    game.set_screen_format(vzd.ScreenFormat.GRAY8)
+    game.set_screen_resolution(vzd.ScreenResolution.RES_640X480)
+    n = game.get_available_buttons_size()
+    actions = [list(a) for a in it.product([0, 1], repeat=n)]
+    game.init()
+    print("Doom initialized. It's time to watch!")
+    return game, actions
 
 
 # Processes Doom screen image to produce cropped and resized image.
