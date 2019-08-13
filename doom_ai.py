@@ -73,10 +73,10 @@ def perform_learning_step(epoch, stacked_frames):
     else:
         s2 = np.zeros(s1.shape)
     # Remember the transition that was just experienced.
-    experience = s1, a, reward, s2, isterminal
-    memory.store(experience)
+    # experience = s1, a, reward, s2, isterminal
+    # memory.store(experience)
 
-    # learn_from_memory()
+    learn_from_memory()
 
 
 """
@@ -94,15 +94,53 @@ def predict_action(explore_start, explore_stop, decay_rate, decay_step, session,
     explore_probability = explore_stop + (explore_start - explore_stop) * np.exp(-decay_rate * decay_step)
     if explore_probability > tradeoff:
         # Make a random action (exploration)
-        action = random.choice(actions)
+        action = randint(0, len(actions) - 1)
     else:
         # Get action from Q-network (exploitation)
         # Estimate the Qs values state
         predictions = session.run(network.output_layer, feed_dict={network.states_: state.reshape((1, *state.shape))})
         # Take the biggest Q value (= the best action)
         choice = np.argmax(predictions)
+        print(choice)
         action = actions[int(choice)]
     return action, explore_probability
+
+
+def train_agent(s1, stack, actions, tau, decay_step, session):
+    tau += 1
+    decay_step += 1
+    a, explore_prob = predict_action(explore_start, explore_stop, decay_rate, decay_step, session, stack, actions)
+    r = game.make_action(actions[a])
+    isterminal = game.is_episode_finished()
+    if not isterminal:
+        s2 = game.get_state().screen_buffer
+        s2, stack = stack_frames(stack, s2, True)
+        experience = s1, a, r, s2, isterminal
+        memory.store(experience)
+        s1 = s2
+    else:
+        s2 = np.zeros(shape=(state_size[0], state_size[1]), dtype=np.int)
+        s2, stack = stack_frames(stack, s2, False)
+        experience = s1, a, r, s2, isterminal
+        memory.store(experience)
+
+    tree_index, mem_batch, samplingWeights = memory.sample(batch_size)
+    states_batch = np.array([each[0][0] for each in mem_batch], ndmin=3)
+    actions_batch = np.array([each[0][1] for each in mem_batch])
+    rewards_batch = np.array([each[0][2] for each in mem_batch])
+    next_states_batch = np.array([each[0][3] for each in mem_batch], ndmin=3)
+    terminals_batch = np.array([each[0][4] for each in mem_batch])
+
+    target_Qs_batch = []
+
+    ### DOUBLE DQN Logic
+    # Use DQNNetwork to select the action to take at next_state (a') (action with the highest Q-value)
+    # Use TargetNetwork to calculate the Q_val of Q(s',a')
+
+    # Get Q values for next_state
+    q_next_state = sess.run(network.output_layer, feed_dict={network.states_: next_states_batch})
+    # Calculate Qtarget for all actions that state
+    q_target_next_state = sess.run(targetNetwork.output_layer, feed_dict={targetNetwork.states_: next_states_batch})
 
 
 if __name__ == '__main__':
@@ -169,8 +207,11 @@ if __name__ == '__main__':
 
             print("Training...")
             game.new_episode()
+            initial_state = game.get_state().screen_buffer
+            initial_state, stacked_frames = stack_frames(stacked_frames, initial_state, True)
             for step in trange(learning_steps_per_epoch, leave=False):
-                perform_learning_step(epoch, stacked_frames)
+                # perform_learning_step(epoch, stacked_frames)
+                train_agent(initial_state, stacked_frames, actions, tau, decay_step, sess)
                 if game.is_episode_finished():
                     # Monte Carlo Approach: rewards are only received at the end of the game.
                     score = game.get_total_reward()
