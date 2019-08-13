@@ -72,11 +72,12 @@ def perform_learning_step(epoch, stacked_frames):
         s2 = game.get_state().screen_buffer
         s2, stacked_frames = stack_frames(stacked_frames, s2, True)
     else:
-        s2 = None
+        s2 = np.zeros(s1.shape)
     # Remember the transition that was just experienced.
-    memory.add_transition(s1, a, s2, isterminal, reward)
+    experience = s1, a, reward, s2, isterminal
+    memory.store(experience)
 
-    learn_from_memory()
+    # learn_from_memory()
 
 
 if __name__ == '__main__':
@@ -115,12 +116,16 @@ if __name__ == '__main__':
     actions = [list(a) for a in it.product([0, 1], repeat=n)]
 
     # Create replay memory which will store the transitions
-    memory = ReplayMemory(capacity=replay_memory_size)
-    # memory = PERMemory(capacity=replay_memory_size)
 
+    # memory = ReplayMemory(capacity=replay_memory_size)
+
+    memory = PERMemory(e=PER_e, a=PER_a, b=PER_b, b_increment_per_sampling=PER_b_increment_per_sampling,
+                       abs_error_upper=absolute_error_upper, capacity=replay_memory_size)
     session = tf.compat.v1.Session()
+
     # network = DuelingDoubleDQN(session, len(actions), name="DuelingDoubleDQN")
     # targetNetwork = DuelingDoubleDQN(session, len(actions), name="TargetDuelingDoubleDQN")
+
     learn, get_q_values, get_best_action = create_network(session, len(actions))
     saver = tf.compat.v1.train.Saver()
     if not load_by_scenario(args.load, get_scenario_name(user_scenario), saver, session):
@@ -138,7 +143,7 @@ if __name__ == '__main__':
 
             print("Training...")
             game.new_episode()
-            for learning_step in trange(learning_steps_per_epoch, leave=False):
+            for step in trange(pretrain_memory_size, leave=False):
                 perform_learning_step(epoch, stacked_frames)
                 if game.is_episode_finished():
                     # Monte Carlo Approach: rewards are only received at the end of the game.

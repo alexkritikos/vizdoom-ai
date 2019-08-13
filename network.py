@@ -59,7 +59,7 @@ class DuelingDoubleDQN:
             self.optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate)
             self.train_step = self.optimizer.minimize(self.loss)
 
-
+    
 
 
 

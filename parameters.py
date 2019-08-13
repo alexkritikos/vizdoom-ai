@@ -19,7 +19,8 @@ gamma = 0.99  # Initial Discounting rate
 
 
 # Memory hyperparameters
-pretrain_memory_size = 100000  # Number of experiences stored in the Memory when initialized for the first time
+# pretrain_memory_size = 100000  # Number of experiences stored in the Memory when initialized for the first time
+pretrain_memory_size = 10000
 # Number of experiences the Memory can keep
 # replay_memory_size = 1000000  # PRODUCES VM CRASH. REQUIRES GPU USAGE
 # replay_memory_size = 100000

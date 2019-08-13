@@ -16,12 +16,12 @@ def watch_doom_game(configuration):
     saver = tf.compat.v1.train.Saver()
     saver.restore(session, load_file)
     session.run(tf.compat.v1.global_variables_initializer())
-    run_episodes(game, get_best_action, actions)
-
-
-def run_episodes(game, best_action, actions):
     stacked_frames = deque([np.zeros((state_size[0], state_size[1]), dtype=np.int) for i in range(stack_size)],
                            maxlen=4)
+    run_episodes(game, get_best_action, actions, stacked_frames)
+
+
+def run_episodes(game, best_action, actions, stacked_frames):
     for _ in range(episodes_to_watch):
         game.new_episode()
         while not game.is_episode_finished():

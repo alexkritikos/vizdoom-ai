@@ -24,7 +24,7 @@ def init_watching_environment(configuration):
     print("Initializing doom...")
     game = vzd.DoomGame()
     game.load_config(configuration)
-    game.set_window_visible(True)  # Only for training purposes
+    game.set_window_visible(True)
     game.set_mode(vzd.Mode.ASYNC_PLAYER)
     game.set_screen_format(vzd.ScreenFormat.GRAY8)
     game.set_screen_resolution(vzd.ScreenResolution.RES_640X480)
