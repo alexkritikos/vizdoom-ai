@@ -11,10 +11,11 @@ learning_steps_per_epoch = 2000
 batch_size = 64
 
 
-
 # Q learning hyperparameters
 gamma = 0.99  # Initial Discounting rate
 # gamma = 0.95
+decay_step = 0  # Initialize the decay rate (that will use to reduce epsilon)
+tau = 0  # Every tau step we update the target network
 
 
 

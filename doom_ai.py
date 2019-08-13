@@ -14,6 +14,7 @@ import os
 from network import *
 from memory import ReplayMemory, PERMemory
 from environment import *
+from parameters import *
 
 
 def learn_from_memory():
@@ -64,9 +65,7 @@ def perform_learning_step(epoch, stacked_frames):
         # Choose the best action according to the network.
         a = get_best_action(s1)
     reward = game.make_action(actions[a], frame_repeat)
-
     isterminal = game.is_episode_finished()
-
     # s2 = preprocess_frame(game.get_state().screen_buffer) if not isterminal else None
     if not isterminal:
         s2 = game.get_state().screen_buffer
@@ -78,6 +77,32 @@ def perform_learning_step(epoch, stacked_frames):
     memory.store(experience)
 
     # learn_from_memory()
+
+
+"""
+This function will do the part
+With ϵ select a random action atat, otherwise select at=argmaxaQ(st,a)
+"""
+
+
+def predict_action(explore_start, explore_stop, decay_rate, decay_step, session, state, actions):
+    ## EPSILON GREEDY STRATEGY
+    # Choose action a from state s using epsilon greedy.
+    ## First we randomize a number
+    tradeoff = np.random.rand()  # Exploration - exploitation tradeoff
+    # Here we'll use an improved version of our epsilon greedy strategy used in Q-learning notebook
+    explore_probability = explore_stop + (explore_start - explore_stop) * np.exp(-decay_rate * decay_step)
+    if explore_probability > tradeoff:
+        # Make a random action (exploration)
+        action = random.choice(actions)
+    else:
+        # Get action from Q-network (exploitation)
+        # Estimate the Qs values state
+        predictions = session.run(network.output_layer, feed_dict={network.states_: state.reshape((1, *state.shape))})
+        # Take the biggest Q value (= the best action)
+        choice = np.argmax(predictions)
+        action = actions[int(choice)]
+    return action, explore_probability
 
 
 if __name__ == '__main__':
@@ -116,22 +141,23 @@ if __name__ == '__main__':
     actions = [list(a) for a in it.product([0, 1], repeat=n)]
 
     # Create replay memory which will store the transitions
-
     # memory = ReplayMemory(capacity=replay_memory_size)
 
     memory = PERMemory(e=PER_e, a=PER_a, b=PER_b, b_increment_per_sampling=PER_b_increment_per_sampling,
                        abs_error_upper=absolute_error_upper, capacity=replay_memory_size)
-    session = tf.compat.v1.Session()
+    sess = tf.compat.v1.Session()
 
-    # network = DuelingDoubleDQN(session, len(actions), name="DuelingDoubleDQN")
-    # targetNetwork = DuelingDoubleDQN(session, len(actions), name="TargetDuelingDoubleDQN")
+    network = DuelingDoubleDQN(state_size, len(actions), name="DuelingDoubleDQN")
+    targetNetwork = DuelingDoubleDQN(state_size, len(actions), name="TargetDuelingDoubleDQN")
 
-    learn, get_q_values, get_best_action = create_network(session, len(actions))
+    target_updated = update_target_graph()
+
+    # learn, get_q_values, get_best_action = create_network(sess, len(actions))
     saver = tf.compat.v1.train.Saver()
-    if not load_by_scenario(args.load, get_scenario_name(user_scenario), saver, session):
+    if not load_by_scenario(args.load, get_scenario_name(user_scenario), saver, sess):
         args.skip_learning = False
         init = tf.compat.v1.global_variables_initializer()
-        session.run(init)
+        sess.run(init)
     print("Starting the training!")
 
     time_start = time()
@@ -143,7 +169,7 @@ if __name__ == '__main__':
 
             print("Training...")
             game.new_episode()
-            for step in trange(pretrain_memory_size, leave=False):
+            for step in trange(learning_steps_per_epoch, leave=False):
                 perform_learning_step(epoch, stacked_frames)
                 if game.is_episode_finished():
                     # Monte Carlo Approach: rewards are only received at the end of the game.
@@ -186,7 +212,7 @@ if __name__ == '__main__':
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             print("Saving the network weigths to:", save_dir)
-            saver.save(session, save_dir)
+            saver.save(sess, save_dir)
 
             print("Total elapsed time: %.2f minutes" % ((time() - time_start) / 60.0))
 

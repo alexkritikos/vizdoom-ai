@@ -1,18 +1,18 @@
-from parameters import *
+from parameters import learning_rate
 import tensorflow as tf
 
 
 # Initial implementation without stacked input functionality
 class DuelingDoubleDQN:
-    def __init__(self, session, available_actions_count, name):
-        self.session = session
+    def __init__(self, state_size, available_actions_count, name):
+        self.state_size = state_size
         self.available_actions_count = available_actions_count
         self.name = name
 
         with tf.variable_scope(self.name):
             self.states_ = tf.compat.v1.placeholder(tf.float32, [None, *state_size], name="InputStates")
             self.w_ = tf.compat.v1.placeholder(tf.float32, [None, 1], name="Weights")
-            self.a_ = tf.compat.v1.placeholder(tf.int32, [None], name="Action")
+            self.a_ = tf.compat.v1.placeholder(tf.float32, [None, available_actions_count], name="Action")
             self.target_q_ = tf.compat.v1.placeholder(tf.float32, [None, self.available_actions_count], name="TargetQ")
 
             self.conv1 = tf.layers.conv2d(inputs=self.states_, filters=32, kernel_size=[8, 8],
@@ -49,22 +49,41 @@ class DuelingDoubleDQN:
                                              activation=None, kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                              name="advantage_output")
 
-            # Q(s,a) = V(s) + (A(s,a) - 1/|A| * sum A(s,a'))
+            # Q(s,a) = V(s) + (A(s,a) - 1/|A| * sum A(s',a))
             self.output_layer = self.value + tf.subtract(self.advantage, tf.reduce_mean(self.advantage, axis=1,
                                                                                         keepdims=True))
             self.predictedQ = tf.reduce_sum(tf.multiply(self.output_layer, self.a_), axis=1)
 
             self.absolute_errors = tf.abs(self.target_q_ - self.predictedQ)
-            self.loss = tf.reduce_mean(self.w_ * tf.squared_difference(self.target_q_ - self.predictedQ))
+            self.loss = tf.reduce_mean(self.w_ * tf.squared_difference(self.target_q_, self.predictedQ))
             self.optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate)
             self.train_step = self.optimizer.minimize(self.loss)
 
-    
+
+def write_to_tensorboard(loss):
+    writer = tf.summary.FileWriter("/tensorboard/dddqn/1")
+    tf.summary.scalar("Loss", loss)
+    write_op = tf.summary.merge_all()
+
+
+def update_target_graph():
+    # Get the parameters of our DQNNetwork
+    from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "DuelingDoubleDQN")
+    # Get the parameters of our Target_network
+    to_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "TargetDuelingDoubleDQN")
+    op_holder = []
+    # Update our target_network parameters with DQNNetwork parameters
+    for from_var, to_var in zip(from_vars, to_vars):
+        op_holder.append(to_var.assign(from_var))
+    return op_holder
 
 
 
 
+
+# Initial network implementation
 def create_network(session, available_actions_count):
+    from parameters import state_size
     # Create the input variables
     s1_ = tf.compat.v1.placeholder(tf.float32, [None] + list(state_size), name="State")
     a_ = tf.compat.v1.placeholder(tf.int32, [None], name="Action")
