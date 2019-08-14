@@ -256,27 +256,36 @@ if __name__ == '__main__':
             print("Results: mean: %.1f±%.1f," % (train_scores.mean(), train_scores.std()), \
                   "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max())
 
-            # print("\nTesting...")
-            # stacked_frames = deque([np.zeros((state_size[0], state_size[1]), dtype=np.int) for i in range(stack_size)],
-            #                        maxlen=4)
-            # test_episode = []
-            # test_scores = []
-            # for test_episode in trange(test_episodes_per_epoch, leave=False):
-            #     game.new_episode()
-            #     while not game.is_episode_finished():
-            #         state = game.get_state().screen_buffer
-            #         state, stacked_frames = stack_frames(stacked_frames, state, True)
-            #         best_action_index = get_best_action(state)
-            #         game.make_action(actions[best_action_index], frame_repeat)
-            #     r = game.get_total_reward()
-            #     test_scores.append(r)
-            #
-            # test_scores = np.array(test_scores)
-            # print(test_scores)
-            #
-            # print("Results: mean: %.1f±%.1f," % (
-            #     test_scores.mean(), test_scores.std()), "min: %.1f" % test_scores.min(),
-            #       "max: %.1f" % test_scores.max())
+            print("\nTesting...")
+            stacked_frames = deque([np.zeros((state_size[0], state_size[1]), dtype=np.int) for i in range(stack_size)],
+                                   maxlen=4)
+            test_episode = []
+            test_scores = []
+            for test_episode in trange(test_episodes_per_epoch, leave=False):
+                game.new_episode()
+                while not game.is_episode_finished():
+                    state = game.get_state().screen_buffer
+                    state, stacked_frames = stack_frames(stacked_frames, state, True)
+                    # best_action_index = get_best_action(state)
+                    exp_exp_tradeoff = np.random.rand()
+                    explore_probability = 0.01
+                    if explore_probability > exp_exp_tradeoff:
+                        watch_action = choice(actions)
+                    else:
+                        qVals = sess.run(network.output_layer,
+                                         feed_dict={network.states_: state.reshape((1, *state.shape))})
+                        best = np.argmax(qVals)
+                        watch_action = actions[int(best)]
+                    game.make_action(watch_action, frame_repeat)
+                r = game.get_total_reward()
+                test_scores.append(r)
+
+            test_scores = np.array(test_scores)
+            print(test_scores)
+
+            print("Results: mean: %.1f±%.1f," % (
+                test_scores.mean(), test_scores.std()), "min: %.1f" % test_scores.min(),
+                  "max: %.1f" % test_scores.max())
 
             save_dir = "savefiles/scenario-" + get_scenario_name(user_scenario) + "/"
             if not os.path.exists(save_dir):
