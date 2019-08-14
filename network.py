@@ -13,7 +13,7 @@ class DuelingDoubleDQN:
             self.states_ = tf.compat.v1.placeholder(tf.float32, [None, *state_size], name="InputStates")
             self.w_ = tf.compat.v1.placeholder(tf.float32, [None, 1], name="Weights")
             self.a_ = tf.compat.v1.placeholder(tf.float32, [None, available_actions_count], name="Action")
-            self.target_q_ = tf.compat.v1.placeholder(tf.float32, [None, self.available_actions_count], name="TargetQ")
+            self.target_q_ = tf.compat.v1.placeholder(tf.float32, [None], name="TargetQ")
 
             self.conv1 = tf.layers.conv2d(inputs=self.states_, filters=32, kernel_size=[8, 8],
                                           strides=[4, 4], padding="VALID",
@@ -52,18 +52,19 @@ class DuelingDoubleDQN:
             # Q(s,a) = V(s) + (A(s,a) - 1/|A| * sum A(s',a))
             self.output_layer = self.value + tf.subtract(self.advantage, tf.reduce_mean(self.advantage, axis=1,
                                                                                         keepdims=True))
-            self.predictedQ = tf.reduce_sum(tf.multiply(self.output_layer, self.a_), axis=1)
 
+            self.predictedQ = tf.reduce_sum(tf.multiply(self.output_layer, self.a_), axis=1)
             self.absolute_errors = tf.abs(self.target_q_ - self.predictedQ)
             self.loss = tf.reduce_mean(self.w_ * tf.squared_difference(self.target_q_, self.predictedQ))
             self.optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate)
             self.train_step = self.optimizer.minimize(self.loss)
 
 
-def write_to_tensorboard(loss):
-    writer = tf.summary.FileWriter("/tensorboard/dddqn/1")
+def get_tensorboard_writer(loss):
+    writer = tf.summary.FileWriter("/tensorboard/dddqn/loss")
     tf.summary.scalar("Loss", loss)
     write_op = tf.summary.merge_all()
+    return writer, write_op
 
 
 def update_target_graph():

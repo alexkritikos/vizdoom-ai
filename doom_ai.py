@@ -3,7 +3,7 @@
 from __future__ import division
 from __future__ import print_function
 import itertools as it
-from random import randint, random
+from random import randint, random, choice
 from time import time, sleep
 from tqdm import trange
 import vizdoom as vzd
@@ -85,7 +85,7 @@ With ϵ select a random action atat, otherwise select at=argmaxaQ(st,a)
 """
 
 
-def predict_action(explore_start, explore_stop, decay_rate, decay_step, session, state, actions):
+def predict_action(explore_start, explore_stop, decay_rate, decay_step, session, state):
     ## EPSILON GREEDY STRATEGY
     # Choose action a from state s using epsilon greedy.
     ## First we randomize a number
@@ -101,15 +101,14 @@ def predict_action(explore_start, explore_stop, decay_rate, decay_step, session,
         predictions = session.run(network.output_layer, feed_dict={network.states_: state.reshape((1, *state.shape))})
         # Take the biggest Q value (= the best action)
         choice = np.argmax(predictions)
-        print(choice)
         action = actions[int(choice)]
     return action, explore_probability
 
 
-def train_agent(s1, stack, actions, tau, decay_step, session):
+def train_agent(s1, stack, tau, decay_step, session, epoch, target_graph):
     tau += 1
     decay_step += 1
-    a, explore_prob = predict_action(explore_start, explore_stop, decay_rate, decay_step, session, stack, actions)
+    a, explore_prob = predict_action(explore_start, explore_stop, decay_rate, decay_step, session, stack)
     r = game.make_action(actions[a])
     isterminal = game.is_episode_finished()
     if not isterminal:
@@ -123,24 +122,54 @@ def train_agent(s1, stack, actions, tau, decay_step, session):
         s2, stack = stack_frames(stack, s2, False)
         experience = s1, a, r, s2, isterminal
         memory.store(experience)
-
     tree_index, mem_batch, samplingWeights = memory.sample(batch_size)
+    # Get the experiences data from batch
     states_batch = np.array([each[0][0] for each in mem_batch], ndmin=3)
     actions_batch = np.array([each[0][1] for each in mem_batch])
     rewards_batch = np.array([each[0][2] for each in mem_batch])
     next_states_batch = np.array([each[0][3] for each in mem_batch], ndmin=3)
     terminals_batch = np.array([each[0][4] for each in mem_batch])
-
     target_Qs_batch = []
 
     ### DOUBLE DQN Logic
     # Use DQNNetwork to select the action to take at next_state (a') (action with the highest Q-value)
     # Use TargetNetwork to calculate the Q_val of Q(s',a')
-
     # Get Q values for next_state
-    q_next_state = sess.run(network.output_layer, feed_dict={network.states_: next_states_batch})
+    q_next_state = session.run(network.output_layer, feed_dict={network.states_: next_states_batch})
     # Calculate Qtarget for all actions that state
-    q_target_next_state = sess.run(targetNetwork.output_layer, feed_dict={targetNetwork.states_: next_states_batch})
+    q_target_next_state = session.run(targetNetwork.output_layer, feed_dict={targetNetwork.states_: next_states_batch})
+    for i in range(0 , len(mem_batch)):
+        terminal = terminals_batch[i]
+        # We got a'
+        a = np.argmax(q_next_state)
+        if terminal:
+            target_Qs_batch.append(rewards_batch[i])
+        else:
+            targetQ = rewards_batch[i] + gamma * q_target_next_state[i][a]
+            target_Qs_batch.append(targetQ)
+    targets_batch = np.array([each for each in target_Qs_batch])
+    optimizer, loss, absolute_errors = session.run([network.optimizer, network.loss, network.absolute_errors],
+                                                   feed_dict={network.states_: states_batch,
+                                                              network.target_q_: targets_batch,
+                                                              network.w_: samplingWeights,
+                                                              network.a_: actions_batch})
+    # Update priority
+    memory.batch_update(tree_index, absolute_errors)
+    # Write TF Summaries
+    writer, writer_operation = get_tensorboard_writer(loss)
+    summary = session.run(writer_operation, feed_dict={network.states_: states_batch,
+                                                       network.target_q_: targets_batch,
+                                                       network.w_: samplingWeights,
+                                                       network.a_: actions_batch})
+    writer.add_summary(summary, epoch)
+    writer.flush()
+
+    if tau > max_tau:
+        # Update the parameters of our TargetNetwork with DQN_weights
+        target_graph = update_target_graph()
+        session.run(target_graph)
+        tau = 0
+        print("Target Network Updated")
 
 
 if __name__ == '__main__':
@@ -211,7 +240,7 @@ if __name__ == '__main__':
             initial_state, stacked_frames = stack_frames(stacked_frames, initial_state, True)
             for step in trange(learning_steps_per_epoch, leave=False):
                 # perform_learning_step(epoch, stacked_frames)
-                train_agent(initial_state, stacked_frames, actions, tau, decay_step, sess)
+                train_agent(initial_state, stacked_frames, tau, decay_step, sess, epoch, target_updated)
                 if game.is_episode_finished():
                     # Monte Carlo Approach: rewards are only received at the end of the game.
                     score = game.get_total_reward()
@@ -227,27 +256,27 @@ if __name__ == '__main__':
             print("Results: mean: %.1f±%.1f," % (train_scores.mean(), train_scores.std()), \
                   "min: %.1f," % train_scores.min(), "max: %.1f," % train_scores.max())
 
-            print("\nTesting...")
-            stacked_frames = deque([np.zeros((state_size[0], state_size[1]), dtype=np.int) for i in range(stack_size)],
-                                   maxlen=4)
-            test_episode = []
-            test_scores = []
-            for test_episode in trange(test_episodes_per_epoch, leave=False):
-                game.new_episode()
-                while not game.is_episode_finished():
-                    state = game.get_state().screen_buffer
-                    state, stacked_frames = stack_frames(stacked_frames, state, True)
-                    best_action_index = get_best_action(state)
-                    game.make_action(actions[best_action_index], frame_repeat)
-                r = game.get_total_reward()
-                test_scores.append(r)
-
-            test_scores = np.array(test_scores)
-            print(test_scores)
-
-            print("Results: mean: %.1f±%.1f," % (
-                test_scores.mean(), test_scores.std()), "min: %.1f" % test_scores.min(),
-                  "max: %.1f" % test_scores.max())
+            # print("\nTesting...")
+            # stacked_frames = deque([np.zeros((state_size[0], state_size[1]), dtype=np.int) for i in range(stack_size)],
+            #                        maxlen=4)
+            # test_episode = []
+            # test_scores = []
+            # for test_episode in trange(test_episodes_per_epoch, leave=False):
+            #     game.new_episode()
+            #     while not game.is_episode_finished():
+            #         state = game.get_state().screen_buffer
+            #         state, stacked_frames = stack_frames(stacked_frames, state, True)
+            #         best_action_index = get_best_action(state)
+            #         game.make_action(actions[best_action_index], frame_repeat)
+            #     r = game.get_total_reward()
+            #     test_scores.append(r)
+            #
+            # test_scores = np.array(test_scores)
+            # print(test_scores)
+            #
+            # print("Results: mean: %.1f±%.1f," % (
+            #     test_scores.mean(), test_scores.std()), "min: %.1f" % test_scores.min(),
+            #       "max: %.1f" % test_scores.max())
 
             save_dir = "savefiles/scenario-" + get_scenario_name(user_scenario) + "/"
             if not os.path.exists(save_dir):
@@ -272,13 +301,19 @@ if __name__ == '__main__':
         while not game.is_episode_finished():
             state = game.get_state().screen_buffer
             state, stacked_frames = stack_frames(stacked_frames, state, True)
-            best_action_index = get_best_action(state)
-
+            # best_action_index = get_best_action(state)
+            exp_exp_tradeoff = np.random.rand()
+            explore_probability = 0.01
+            if explore_probability > exp_exp_tradeoff:
+                watch_action = choice(actions)
+            else:
+                qVals = sess.run(network.output_layer, feed_dict={network.states_: state.reshape((1, *state.shape))})
+                best = np.argmax(qVals)
+                watch_action = actions[int(best)]
             # Instead of make_action(a, frame_repeat) in order to make the animation smooth
-            game.set_action(actions[best_action_index])
+            game.set_action(watch_action)
             for _ in range(frame_repeat):
                 game.advance_action()
-
         # Sleep between episodes
         sleep(1.0)
         score = game.get_total_reward()

@@ -7,7 +7,7 @@ stack_size = 4
 learning_rate = 0.00025  # Initial value. Used on optimizer to minimize the loss
 # learning_rate = 0.0001
 # learning_rate =  0.0002
-epochs = 20
+epochs = 5
 learning_steps_per_epoch = 2000
 batch_size = 64
 
