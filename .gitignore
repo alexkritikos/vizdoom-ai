@@ -5,3 +5,5 @@ _vizdoom
 savefiles/
 _vizdoom.ini
 gym/
+rl-training/
+statistics/

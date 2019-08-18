@@ -8,6 +8,7 @@ from time import time, sleep
 from tqdm import trange
 import vizdoom as vzd
 from argparse import ArgumentParser
+import tensorflow as tf
 
 from general_utils import *
 import os
@@ -138,7 +139,7 @@ def train_agent(s1, stack, tau, decay_step, session, epoch, target_graph):
     q_next_state = session.run(network.output_layer, feed_dict={network.states_: next_states_batch})
     # Calculate Qtarget for all actions that state
     q_target_next_state = session.run(targetNetwork.output_layer, feed_dict={targetNetwork.states_: next_states_batch})
-    for i in range(0 , len(mem_batch)):
+    for i in range(0, len(mem_batch)):
         terminal = terminals_batch[i]
         # We got a'
         a = np.argmax(q_next_state)
@@ -148,6 +149,10 @@ def train_agent(s1, stack, tau, decay_step, session, epoch, target_graph):
             targetQ = rewards_batch[i] + gamma * q_target_next_state[i][a]
             target_Qs_batch.append(targetQ)
     targets_batch = np.array([each for each in target_Qs_batch])
+    print("STATES SHAPE: {}".format(states_batch.shape))
+    print("TARGETS SHAPE: {}".format(targets_batch.shape))
+    print("WEIGHTS SHAPE: {}".format(samplingWeights.shape))
+    print("ACTIONS SHAPE: {}".format(actions_batch.shape))
     optimizer, loss, absolute_errors = session.run([network.optimizer, network.loss, network.absolute_errors],
                                                    feed_dict={network.states_: states_batch,
                                                               network.target_q_: targets_batch,
@@ -198,7 +203,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Create Doom instance
-    game = initialize_vizdoom(args.config)
+    game = initialize_vizdoom(args.config, False)
 
     # Initialize stacked frames
     stacked_frames = deque([np.zeros((state_size[0], state_size[1]), dtype=np.int) for i in range(stack_size)],
@@ -270,13 +275,13 @@ if __name__ == '__main__':
                     exp_exp_tradeoff = np.random.rand()
                     explore_probability = 0.01
                     if explore_probability > exp_exp_tradeoff:
-                        watch_action = choice(actions)
+                        test_action = choice(actions)
                     else:
                         qVals = sess.run(network.output_layer,
                                          feed_dict={network.states_: state.reshape((1, *state.shape))})
                         best = np.argmax(qVals)
-                        watch_action = actions[int(best)]
-                    game.make_action(watch_action, frame_repeat)
+                        test_action = actions[int(best)]
+                    game.make_action(test_action, frame_repeat)
                 r = game.get_total_reward()
                 test_scores.append(r)
 

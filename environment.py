@@ -1,3 +1,5 @@
+import cv2
+import skimage
 import vizdoom as vzd
 from parameters import state_size, stack_size
 import numpy as np
@@ -7,13 +9,14 @@ import itertools as it
 
 
 # Creates and initializes ViZDoom environment.
-def initialize_vizdoom(config_file_path):
+def initialize_vizdoom(config_file_path, is_rgb):
     print("Initializing doom...")
     game = vzd.DoomGame()
     game.load_config(config_file_path)
     game.set_window_visible(False)  # Only for training purposes
     game.set_mode(vzd.Mode.PLAYER)
-    game.set_screen_format(vzd.ScreenFormat.GRAY8)
+    if not is_rgb:
+        game.set_screen_format(vzd.ScreenFormat.GRAY8)
     game.set_screen_resolution(vzd.ScreenResolution.RES_640X480)
     game.init()
     print("Doom initialized.")
@@ -46,6 +49,13 @@ def preprocess_frame(frame):
     # preprocessed_frame = transform.resize(normalized_frame, [100, 160])
     preprocessed_frame = transform.resize(normalized_frame, [state_size[0], state_size[1]])
     return preprocessed_frame
+
+
+def preprocess_frame_v2(frame, size):
+    frame = np.rollaxis(frame, 0, 3)    # It becomes (640, 480, 3)
+    frame = skimage.transform.resize(frame, size)
+    frame = skimage.color.rgb2gray(frame)
+    return frame
 
 
 def stack_frames(stacked_frames, state, is_new_episode):

@@ -1,3 +1,7 @@
+from keras import Sequential
+from keras.layers import Convolution2D, Flatten, Dense
+from keras.optimizers import Adam
+
 from parameters import learning_rate
 import tensorflow as tf
 
@@ -79,9 +83,6 @@ def update_target_graph():
     return op_holder
 
 
-
-
-
 # Initial network implementation
 def create_network(session, available_actions_count):
     from parameters import state_size
@@ -130,3 +131,17 @@ def create_network(session, available_actions_count):
         return function_get_best_action(state.reshape([1, state_size[0], state_size[1], state_size[2]]))[0]
 
     return function_learn, function_get_q_values, function_simple_get_best_action
+
+
+def dqn(input_shape, action_size, lr):
+    model = Sequential()
+    model.add(Convolution2D(32, 8, 8, subsample=(4,4), activation='relu', input_shape=input_shape))
+    model.add(Convolution2D(64, 4, 4, subsample=(2,2), activation='relu'))
+    model.add(Convolution2D(64, 3, 3, activation='relu'))
+    model.add(Flatten())
+    model.add(Dense(output_dim=512, activation='relu'))
+    model.add(Dense(output_dim=action_size, activation='linear'))
+
+    adam = Adam(lr=lr)
+    model.compile(loss='mse', optimizer=adam)
+    return model

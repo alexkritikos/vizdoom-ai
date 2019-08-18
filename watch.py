@@ -1,6 +1,6 @@
 from collections import deque
 from time import sleep
-from environment import stack_frames, init_watching_environment
+from environment import stack_frames, init_watching_environment, initialize_vizdoom
 from general_utils import load_file_simple, validate_scenario_input
 import numpy as np
 from network import create_network
@@ -22,6 +22,23 @@ def watch_doom_game(configuration):
 
 
 def run_episodes(game, best_action, actions, stacked_frames):
+    for _ in range(episodes_to_watch):
+        game.new_episode()
+        while not game.is_episode_finished():
+            state = game.get_state().screen_buffer
+            state, stacked_frames = stack_frames(stacked_frames, state, True)
+            best_action_index = best_action(state)
+            # Instead of make_action(a, frame_repeat) in order to make the animation smooth
+            game.set_action(actions[best_action_index])
+            for _ in range(frame_repeat):
+                game.advance_action()
+        # Sleep between episodes
+        sleep(1.0)
+        print("Total score: ", game.get_total_reward())
+
+
+def watch_ddqn_agent():
+    game = initialize_vizdoom("maps/config/defend_the_center.cfg", True)
     for _ in range(episodes_to_watch):
         game.new_episode()
         while not game.is_episode_finished():
