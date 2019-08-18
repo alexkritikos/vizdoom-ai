@@ -1,5 +1,5 @@
-from keras import Sequential
-from keras.layers import Convolution2D, Flatten, Dense
+from keras import Sequential, Input, Model
+from keras.layers import Convolution2D, Flatten, Dense, merge
 from keras.optimizers import Adam
 
 from parameters import learning_rate
@@ -135,8 +135,8 @@ def create_network(session, available_actions_count):
 
 def dqn(input_shape, action_size, lr):
     model = Sequential()
-    model.add(Convolution2D(32, 8, 8, subsample=(4,4), activation='relu', input_shape=input_shape))
-    model.add(Convolution2D(64, 4, 4, subsample=(2,2), activation='relu'))
+    model.add(Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu', input_shape=input_shape))
+    model.add(Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu'))
     model.add(Convolution2D(64, 3, 3, activation='relu'))
     model.add(Flatten())
     model.add(Dense(output_dim=512, activation='relu'))
@@ -144,4 +144,44 @@ def dqn(input_shape, action_size, lr):
 
     adam = Adam(lr=lr)
     model.compile(loss='mse', optimizer=adam)
+    return model
+
+
+def direct_future_prediction(state, metrics, goal, actions, timesteps, lr):
+    # Screen Buffer
+    state_input = Input(shape=state)
+    state_feature = Convolution2D(filters=32, kernel_size=8, strides=8, subsample=(4, 4), activation='relu')(
+        state_input)
+    state_feature = Convolution2D(filters=64, kernel_size=4, strides=4, subsample=(2, 2), activation='relu')(
+        state_feature)
+    state_feature = Convolution2D(filters=64, kernel_size=3, strides=3, activation='relu')(state_feature)
+    state_feature = Flatten()(state_feature)
+    state_feature = Dense(units=512, activation='relu')(state_feature)
+    # Metrics Input
+    metrics_input = Input(shape=(metrics,))
+    metrics_feature = Dense(units=128, activation='relu')(metrics_input)
+    metrics_feature = Dense(units=128, activation='relu')(metrics_feature)
+    metrics_feature = Dense(units=128, activation='relu')(metrics_feature)
+    # Goal Input
+    goal_input = Input(shape=goal)
+    goal_feature = Dense(units=128, activation='relu')(goal_input)
+    goal_feature = Dense(units=128, activation='relu')(goal_feature)
+    goal_feature = Dense(units=128, activation='relu')(goal_feature)
+
+    concatenated_feature = merge([state_feature, metrics_feature, goal_feature], mode='concat')
+
+    # 3 metrics * 6 timesteps [1,2,4,8,16,32]
+    measurement_predicted_size = metrics * timesteps
+
+    expectation_stream = Dense(units=measurement_predicted_size, activation='relu')(concatenated_feature)
+
+    prediction_list = []
+    for i in range(actions):
+        action_stream = Dense(units=measurement_predicted_size, activation='relu')(concatenated_feature)
+        prediction_list.append(merge([action_stream, expectation_stream], mode='sum'))
+
+    model = Model(input=[state, metrics, goal], output=prediction_list)
+
+    adam = Adam(lr=lr)
+    model.compile(optimizer=adam, loss='mse')
     return model
