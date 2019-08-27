@@ -1,9 +1,10 @@
 from keras import Sequential, Input, Model
-from keras.layers import Convolution2D, Flatten, Dense, merge
+from keras.layers import Convolution2D, Flatten, Dense, concatenate, Concatenate
 from keras.optimizers import Adam
 
 from parameters import learning_rate
 import tensorflow as tf
+import numpy as np
 
 
 # Initial implementation without stacked input functionality
@@ -133,7 +134,7 @@ def create_network(session, available_actions_count):
     return function_learn, function_get_q_values, function_simple_get_best_action
 
 
-def dqn(input_shape, action_size, lr):
+def dqn(input_shape, action_size, alpha):
     model = Sequential()
     model.add(Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu', input_shape=input_shape))
     model.add(Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu'))
@@ -142,33 +143,33 @@ def dqn(input_shape, action_size, lr):
     model.add(Dense(output_dim=512, activation='relu'))
     model.add(Dense(output_dim=action_size, activation='linear'))
 
-    adam = Adam(lr=lr)
+    adam = Adam(lr=alpha)
     model.compile(loss='mse', optimizer=adam)
     return model
 
 
-def direct_future_prediction(state, metrics, goal, actions, timesteps, lr):
+def direct_future_prediction(state, metrics, goal, actions, timesteps, alpha):
     # Screen Buffer
     state_input = Input(shape=state)
-    state_feature = Convolution2D(filters=32, kernel_size=8, strides=8, subsample=(4, 4), activation='relu')(
+    state_feature = Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu')(
         state_input)
-    state_feature = Convolution2D(filters=64, kernel_size=4, strides=4, subsample=(2, 2), activation='relu')(
+    state_feature = Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu')(
         state_feature)
-    state_feature = Convolution2D(filters=64, kernel_size=3, strides=3, activation='relu')(state_feature)
+    state_feature = Convolution2D(64, 3, 3, activation='relu')(state_feature)
     state_feature = Flatten()(state_feature)
     state_feature = Dense(units=512, activation='relu')(state_feature)
     # Metrics Input
-    metrics_input = Input(shape=(metrics,))
+    metrics_input = Input(shape=(metrics, ))
     metrics_feature = Dense(units=128, activation='relu')(metrics_input)
     metrics_feature = Dense(units=128, activation='relu')(metrics_feature)
     metrics_feature = Dense(units=128, activation='relu')(metrics_feature)
     # Goal Input
-    goal_input = Input(shape=goal)
+    goal_input = Input(shape=(goal, ))
     goal_feature = Dense(units=128, activation='relu')(goal_input)
     goal_feature = Dense(units=128, activation='relu')(goal_feature)
     goal_feature = Dense(units=128, activation='relu')(goal_feature)
 
-    concatenated_feature = merge([state_feature, metrics_feature, goal_feature], mode='concat')
+    concatenated_feature = concatenate([state_feature, metrics_feature, goal_feature])
 
     # 3 metrics * 6 timesteps [1,2,4,8,16,32]
     measurement_predicted_size = metrics * timesteps
@@ -178,10 +179,39 @@ def direct_future_prediction(state, metrics, goal, actions, timesteps, lr):
     prediction_list = []
     for i in range(actions):
         action_stream = Dense(units=measurement_predicted_size, activation='relu')(concatenated_feature)
-        prediction_list.append(merge([action_stream, expectation_stream], mode='sum'))
+        print("ACTION STREAM SHAPE: {}".format(np.shape(action_stream)))
+        print("EXPECTATION STREAM SHAPE: {}".format(np.shape(expectation_stream)))
+        concat = Concatenate(axis=1)
+        prediction_stream = concat([action_stream, expectation_stream])
+        print("PREDICTION STREAM SHAPE: {}".format(np.shape(prediction_stream)))
+        prediction_list.append(prediction_stream)
 
-    model = Model(input=[state, metrics, goal], output=prediction_list)
+    model = Model(inputs=[state_input, metrics_input, goal_input], outputs=prediction_list)
 
-    adam = Adam(lr=lr)
+    adam = Adam(lr=alpha)
     model.compile(optimizer=adam, loss='mse')
+    return model
+
+
+def value_distribution_network(input_shape, num_atoms, action_size, alpha):
+    """Model Value Distribution
+    With States as inputs and output Probability Distributions for all Actions
+    """
+
+    state_input = Input(shape=(input_shape))
+    cnn_feature = Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu')(state_input)
+    cnn_feature = Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu')(cnn_feature)
+    cnn_feature = Convolution2D(64, 3, 3, activation='relu')(cnn_feature)
+    cnn_feature = Flatten()(cnn_feature)
+    cnn_feature = Dense(512, activation='relu')(cnn_feature)
+
+    distribution_list = []
+    for i in range(action_size):
+        distribution_list.append(Dense(num_atoms, activation='softmax')(cnn_feature))
+
+    model = Model(input=state_input, output=distribution_list)
+
+    adam = Adam(lr=alpha)
+    model.compile(loss='categorical_crossentropy', optimizer=adam)
+
     return model

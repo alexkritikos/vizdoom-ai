@@ -29,6 +29,7 @@ class DoubleDQNAgent:
         self.frame_per_action = 4
         self.update_target_freq = 3000
         self.timestep_per_train = 100  # Number of timesteps between training interval
+        self.max_iterations = 400000
         # create replay memory using deque
         self.memory = deque()
         self.max_memory = 50000  # number of previous transitions to remember
@@ -65,8 +66,8 @@ class DoubleDQNAgent:
             r_t = r_t + 1
         if misc[1] < prev_misc[1]:  # Use ammo
             r_t = r_t - 0.1
-        # if misc[2] < prev_misc[2]:  # Loss HEALTH
-        #     r_t = r_t - 0.1
+        if misc[2] < prev_misc[2]:  # Loss HEALTH
+            r_t = r_t - 0.1
 
         return r_t
 
@@ -173,13 +174,6 @@ if __name__ == "__main__":
     config.gpu_options.allow_growth = True
     sess = tf.Session(config=config)
     K.set_session(sess)
-
-    # game = DoomGame()
-    # game.load_config("../../scenarios/defend_the_center.cfg")
-    # game.set_sound_enabled(True)
-    # game.set_screen_resolution(ScreenResolution.RES_640X480)
-    # game.set_window_visible(False)
-    # game.init()
     
     game = initialize_vizdoom("maps/config/defend_the_center.cfg", True)
 
@@ -279,13 +273,12 @@ if __name__ == "__main__":
 
         # save progress every 10000 iterations
         if t % 10000 == 0:
-            if not os.path.exists("savefiles/keras"):
+            if not os.path.exists("savefiles/ddqn"):
                 print("Creating model directory")
-                os.makedirs("savefiles/keras")
-            print("Now we save model")
-            agent.model.save_weights("savefiles/keras/ddqn.h5", overwrite=True)
+                os.makedirs("savefiles/ddqn")
+            print("Saving model to: savefiles/ddqn/ddqn.h5")
+            agent.model.save_weights("savefiles/ddqn/ddqn.h5", overwrite=True)
 
-        # print info
         state = ""
         if t <= agent.observe:
             state = "observe"
@@ -310,16 +303,20 @@ if __name__ == "__main__":
                 # Reset rolling stats buffer
                 life_buffer, ammo_buffer, kills_buffer = [], [], []
 
-                if not os.path.exists("statistics"):
+                if not os.path.exists("statistics/ddqn"):
                     print("Creating statistics directory")
-                    os.makedirs("statistics")
+                    os.makedirs("statistics/ddqn")
 
                 # Write Rolling Statistics to file
-                with open("statistics/ddqn_stats.txt", "w") as stats_file:
+                with open("statistics/ddqn/ddqn_stats.txt", "w") as stats_file:
                     stats_file.write('Game: ' + str(GAME) + '\n')
                     stats_file.write('Max Score: ' + str(max_life) + '\n')
                     stats_file.write('mavg_score: ' + str(agent.mavg_score) + '\n')
                     stats_file.write('var_score: ' + str(agent.var_score) + '\n')
                     stats_file.write('mavg_ammo_left: ' + str(agent.mavg_ammo_left) + '\n')
                     stats_file.write('mavg_kill_counts: ' + str(agent.mavg_kill_counts) + '\n')
+
+        if t >= agent.max_iterations:
+            print("Training finished")
+            break
 
