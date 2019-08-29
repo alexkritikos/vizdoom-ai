@@ -1,29 +1,11 @@
 #!/usr/bin/env python
 from __future__ import print_function
-
-import skimage as skimage
-from skimage import transform, color, exposure
-from skimage.viewer import ImageViewer
 import random
-from random import choice
 import numpy as np
 from collections import deque
-import time
 import math
-
-import json
-from keras.models import model_from_json
-from keras.models import Sequential, load_model, Model
-from keras.layers.core import Dense, Dropout, Activation, Flatten
-from keras.layers import Convolution2D, Dense, Flatten, merge, MaxPooling2D, Input, AveragePooling2D, Lambda, \
-    Activation, Embedding
-from keras.optimizers import SGD, Adam, rmsprop
 from keras import backend as K
-from keras.utils import np_utils
-
 from vizdoom import *
-import itertools as it
-from time import sleep
 import tensorflow as tf
 import os
 

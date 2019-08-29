@@ -2,18 +2,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
 from __future__ import print_function
-import itertools as it
 from random import randint, random, choice
 from time import time, sleep
 from tqdm import trange
 import vizdoom as vzd
 from argparse import ArgumentParser
-import tensorflow as tf
 
 from general_utils import *
 import os
 from network import *
-from memory import ReplayMemory, PERMemory
+from memory import PERMemory
 from environment import *
 from parameters import *
 

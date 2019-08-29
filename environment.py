@@ -1,4 +1,3 @@
-import cv2
 import skimage
 import vizdoom as vzd
 from parameters import state_size, stack_size
