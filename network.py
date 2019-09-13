@@ -194,10 +194,6 @@ def direct_future_prediction(state, metrics, goal, actions, timesteps, alpha):
 
 
 def value_distribution_network(input_shape, num_atoms, action_size, alpha):
-    """Model Value Distribution
-    With States as inputs and output Probability Distributions for all Actions
-    """
-
     state_input = Input(shape=(input_shape))
     cnn_feature = Convolution2D(32, 8, 8, subsample=(4, 4), activation='relu')(state_input)
     cnn_feature = Convolution2D(64, 4, 4, subsample=(2, 2), activation='relu')(cnn_feature)
